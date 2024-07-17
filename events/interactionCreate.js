@@ -2,9 +2,7 @@ const {Events, EmbedBuilder} = require('discord.js');
 const registrationModal = require('../components/modals/modal-register');
 const store = require('../store/index');
 const distributePlayers = require('../utils/distribute-players');
-const balanceTeams = require('../utils/balance-teams');
-const getPositionOnNumber = require('../utils/get-position-on-number');
-const getEmojiOnNumber = require('../utils/get-emoji-on-number');
+const BalanceMMR = require('../utils/balance-mmr');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -29,12 +27,6 @@ module.exports = {
       }
     } else if (interaction.isModalSubmit()) {
       if (interaction.customId === 'modal-register') {
-        let count = 0;
-
-        store.forEach(() => {
-          count++;
-        });
-
         const user = interaction.user;
 
         const fields = interaction.fields;
@@ -45,9 +37,9 @@ module.exports = {
         const pos4 = +fields.getTextInputValue('pos4');
         const pos5 = +fields.getTextInputValue('pos5');
 
-        store.set(user.username, {id: user.id, name: user.username, pos1, pos2, pos3, pos4, pos5});
+        store.set(user.username, {name: user.username, pos1, pos2, pos3, pos4, pos5});
 
-        await interaction.reply(count === 10 ? 'Регистрация на клоз невозможна, список набран.' : `${user.globalName}(${user.username}) зарегистрировался на клоз!`);
+        await interaction.reply(`${user.globalName}(${user.username}) зарегистрировался на клоз!`);
       }
     } else if (interaction.isButton()) {
       const user = interaction.user;
@@ -62,7 +54,7 @@ module.exports = {
           let count = 0;
 
           store.forEach((player) => {
-            message += `${count + 1}. <@${player.id}> - Позиции: `;
+            message += `${count + 1}. ${player.name} - Позиции: `;
             if (player.pos1) {
               message += `Легкая: ${player.pos1} `;
             }
@@ -101,31 +93,23 @@ module.exports = {
           await interaction.reply(`${user.globalName}(${user.username}) вы не зарегистрированы на клоз.`);
           break;
         case 'balance':
-          let countStoreItems = 0;
+          const testData = [
+            { name: "1", pos1: 0, pos2: 0, pos3: 0, pos4: 0, pos5: 10 },
+            { name: "2", pos1: 0, pos2: 20, pos3: 0, pos4: 0, pos5: 0 },
+            { name: "3", pos1: 0, pos2: 0, pos3: 30, pos4: 0, pos5: 0 },
+            { name: "4", pos1: 0, pos2: 0, pos3: 0, pos4: 40, pos5: 0 },
+            { name: "5", pos1: 0, pos2: 0, pos3: 0, pos4: 0, pos5: 50 },
+            { name: "6", pos1: 10, pos2: 20, pos3: 30, pos4: 40, pos5: 50 },
+            { name: "7", pos1: 10, pos2: 20, pos3: 30, pos4: 40, pos5: 50 },
+            { name: "8", pos1: 10, pos2: 20, pos3: 30, pos4: 40, pos5: 50 },
+            { name: "9", pos1: 10, pos2: 20, pos3: 30, pos4: 40, pos5: 50 },
+            { name: "10", pos1: 10, pos2: 10, pos3: 10, pos4: 10, pos5: 50 },
+          ];
+          const {players, error} = distributePlayers(testData);
 
-          store.forEach(() => {
-            countStoreItems++;
-          });
+          const balanced = BalanceMMR(players);
 
-          if (countStoreItems !== 10) {
-            await interaction.reply({
-              content: 'Недостаточно игроков для проведения клоза.',
-            });
-            break;
-          }
-
-          const {players, error} = distributePlayers(store.map(player => player));
-          const [team1, team2] = balanceTeams(players);
-
-          let description = `## Команда Radiant (${team1.reduce((acc, player) => acc + player.mmr, 0)})\n`;
-          team1.forEach((player, index) => {
-            description += `${getEmojiOnNumber(index + 1)}  ${getPositionOnNumber(player.pos)} (${player.mmr}) - <@${player.id}>\n\n`;
-          });
-
-          description += `## Команда Dire (${team2.reduce((acc, player) => acc + player.mmr, 0)})\n`;
-          team2.forEach((player, index) => {
-            description += `${getEmojiOnNumber(index + 1)}  ${getPositionOnNumber(player.pos)} (${player.mmr}) - <@${player.id}>\n\n`;
-          });
+          const description = '## Команда A \n## Команда B  ';
 
           const embed = new EmbedBuilder()
             .setColor(0x0099FF)
